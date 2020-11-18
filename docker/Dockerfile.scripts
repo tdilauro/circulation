@@ -2,11 +2,15 @@
 ## lcpencrypt
 ###############################################################################
 
-FROM amd64/golang AS builder
-
+FROM amd64/golang AS lcp-builder
 LABEL maintainer="Library Simplified <info@librarysimplified.org>"
-
 RUN go get -v github.com/readium/readium-lcp-server/lcpencrypt
+
+###############################################################################
+## python
+###############################################################################
+
+
 
 ###############################################################################
 ## Final image
