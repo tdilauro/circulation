@@ -2,7 +2,7 @@
 set -ex
 
 # Configure uwsgi.
-cp /ls_build/services/uwsgi.ini /var/www/circulation/uwsgi.ini
+cp /ls_build/uwsgi/uwsgi.ini /var/www/circulation/uwsgi.ini
 chown simplified:simplified /var/www/circulation/uwsgi.ini
 mkdir /var/log/uwsgi
 chown -R simplified:simplified /var/log/uwsgi

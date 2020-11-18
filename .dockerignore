@@ -1,0 +1,64 @@
+# Editors
+**/.vscode/
+**/.idea/
+
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# C extensions
+**/*.so
+
+# Markdown
+**/*.md
+
+# Distribution / packaging
+**/.Python
+**/env/
+**/build/
+**/develop-eggs/
+**/dist/
+**/eggs/
+**/lib/
+**/lib64/
+**/parts/
+**/sdist/
+**/var/
+**/*.egg-info/
+**/.installed.cfg
+**/*.egg
+**/node_modules/
+
+# Installer logs
+**/pip-log.txt
+**/pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+**/htmlcov/
+**/.tox/
+**/.coverage
+**/.cache
+**/nosetests.xml
+**/coverage.xml
+
+# Translations
+**/*.mo
+
+# Mr Developer
+**/.mr.developer.cfg
+**/.project
+**/.pydevproject
+
+# Rope
+**/.ropeproject
+
+# Django stuff:
+**/*.log
+**/*.pot
+
+**/*~
+**/.env
+
+**/*.md
