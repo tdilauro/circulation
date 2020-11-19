@@ -6,6 +6,7 @@ cd /source
 # If submodule isn't initialzied then do it
 if [[ ! -f "core/.git" ]]; then
   # If submodule is using git, switch to https
+  git submodule init
   git config submodule.core.url `git config submodule.core.url | perl -p -e 's|git@(.*?):|https://\1/|g'`
   git submodule update --init --recursive
 fi
