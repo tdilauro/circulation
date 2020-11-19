@@ -1,11 +1,4 @@
 ###############################################################################
-## Build lcpencrypt
-###############################################################################
-
-FROM amd64/golang AS lcp-builder
-RUN go get -v github.com/readium/readium-lcp-server/lcpencrypt
-
-###############################################################################
 ## Build the app
 ###############################################################################
 
@@ -47,8 +40,11 @@ COPY --from=app-builder /var/www/circulation/api/admin/node_modules/simplified-c
 COPY docker/simplified_app.sh /ls_build/
 RUN /ls_build/simplified_app.sh && /bd_build/cleanup.sh
 
-# Setup web specific parts
-
+# Setup webapp specific parts
+COPY docker/web /ls_build
+RUN /ls_build/nginx.sh &&\
+    /ls_build/uwsgi.sh &&\
+    /bd_build/cleanup.sh
 
 VOLUME /var/log
 WORKDIR /home/simplified/circulation
