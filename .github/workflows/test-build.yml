@@ -150,7 +150,7 @@ jobs:
       - name: Build & push circ-exec image
         uses: docker/build-push-action@v2
         with:
-          context: ./docker
+          context: .
           file: ./docker/Dockerfile.exec
           push: true
           tags: ${{ steps.exec-tags.outputs.tags }}
@@ -191,7 +191,7 @@ jobs:
       - name: Build circ-scripts image
         uses: docker/build-push-action@v2
         with:
-          context: ./docker
+          context: .
           file: ./docker/Dockerfile.scripts
           load: true
           tags: circ
@@ -227,7 +227,7 @@ jobs:
       - name: Push circ-scripts image
         uses: docker/build-push-action@v2
         with:
-          context: ./docker
+          context: .
           file: ./docker/Dockerfile.scripts
           push: true
           tags: ${{ steps.scripts-tags.outputs.tags }}
@@ -268,7 +268,7 @@ jobs:
       - name: Build circ-webapp image
         uses: docker/build-push-action@v2
         with:
-          context: ./docker
+          context: .
           file: ./docker/Dockerfile.webapp
           load: true
           tags: circ
@@ -304,7 +304,7 @@ jobs:
       - name: Push circ-webapp image
         uses: docker/build-push-action@v2
         with:
-          context: ./docker
+          context: .
           file: ./docker/Dockerfile.webapp
           push: true
           tags: ${{ steps.webapp-tags.outputs.tags }}
