@@ -12,16 +12,11 @@ RUN go get -v github.com/readium/readium-lcp-server/lcpencrypt
 FROM phusion/baseimage:bionic-1.0.0 AS app-builder
 
 # Build virtualenv and nodejs dist folder
-COPY docker/app-builder /ls_build
+COPY docker/builder /ls_build
 RUN /ls_build/prepare.sh
-COPY requirements.txt /var/www/circulation/
-COPY core/requirements.txt /var/www/circulation/core/
-COPY api/admin/package* /var/www/circulation/api/admin/
-RUN /ls_build/build.sh
-
-# Cleanup the application source we got to minimize size
-COPY . /source
-RUN /ls_build/cleanup.sh
+COPY . /var/www/circulation
+RUN /ls_build/build.sh &&\
+    /ls_build/cleanup.sh
 
 ###############################################################################
 ## Final image
@@ -31,22 +26,18 @@ FROM phusion/baseimage:bionic-1.0.0
 MAINTAINER Library Simplified <info@librarysimplified.org>
 
 ENV SIMPLIFIED_DB_TASK "auto"
-ENV SIMPLIFIED_SCRIPT_NAME ""
 
 # Common steps across all images
-COPY docker/base /ls_build
+COPY docker/app /ls_build
 RUN /ls_build/packages.sh &&\
-    /ls_build/app.sh &&\
+    /ls_build/install.sh &&\
     /ls_build/logrotate.sh &&\
     /bd_build/cleanup.sh
 
 # Setup App
 COPY --from=app-builder /usr/lib/nltk_data /usr/lib/nltk_data
-COPY --from=app-builder /source /var/www/circulation
-COPY --from=app-builder /var/www/circulation/env /var/www/circulation/env
-COPY --from=app-builder /var/www/circulation/api/admin/node_modules/simplified-circulation-web/dist /var/www/circulation/api/admin/node_modules/simplified-circulation-web/dist
-COPY docker/simplified_app.sh /ls_build/
-RUN /ls_build/simplified_app.sh && /bd_build/cleanup.sh
+COPY --from=app-builder /var/www/circulation /var/www/circulation
+RUN /ls_build/app.sh && /bd_build/cleanup.sh
 
 # Copy LCP
 COPY --from=lcp-builder /go/bin/lcpencrypt /go/bin/lcpencrypt

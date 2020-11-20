@@ -1,7 +1,6 @@
 name: Test Circulation & Build Docker Images
 on: [push]
 env:
-  APT_PACKAGES: postgresql-client-9.6 libxmlsec1-dev libxml2-dev
   POSTGRES_USER: simplified_test
   POSTGRES_PASSWORD: test
   POSTGRES_DB: simplified_circulation_test
@@ -20,54 +19,41 @@ jobs:
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
           POSTGRES_DB: ${{ env.POSTGRES_DB }}
           POSTGRES_INITDB_ARGS: "--nosync"
-        ports:
-          - 5432:5432
         options: --tmpfs /var/lib/postgresql/data:rw
 
     steps:
       - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build image for testing
+        uses: docker/build-push-action@v2
         with:
-          submodules: recursive
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 2.7
-
-      - name: Install Apt Packages
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes ${{ env.APT_PACKAGES }}
-
-      - name: Pip Package Cache
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install Python Packages
-        run: |
-          pip install --upgrade pip
-          pip install wheel
-          pip install -r requirements.txt
-          python -m textblob.download_corpora
+          context: .
+          file: ./docker/Dockerfile.exec
+          load: true
+          tags: circ-exec
 
       - name: Run Circulation Tests
-        run: nosetests -v tests
-        env:
-          TESTING: true
-          PYTHONWARNINGS: ignore
-
+        run: >
+          docker run
+          --network ${{ job.services.postgres.network }}
+          --it
+          -e TESTING=true
+          -e PYTHONWARNINGS=ignore
+          -e SIMPLIFIED_DB_TASK="ignore"
+          -e SIMPLIFIED_TEST_DATABASE='postgres://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@postgres:5432/${{ env.POSTGRES_DB }}'
+          -w /var/www/circulation
+          circ-exec
+          /bin/bash -c
+          "source env/bin/activate && nosetests -v tests"
 
   test-core:
     name: Run Core Tests
     runs-on: ubuntu-latest
 
     env:
-      SIMPLIFIED_TEST_ELASTICSEARCH: http://localhost:9200
-      SIMPLIFIED_TEST_MINIO_ENDPOINT_URL: http://localhost:9000
       SIMPLIFIED_TEST_MINIO_USER: simplified
       SIMPLIFIED_TEST_MINIO_PASSWORD: 12345678901234567890
 
@@ -79,64 +65,53 @@ jobs:
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
           POSTGRES_DB: ${{ env.POSTGRES_DB }}
           POSTGRES_INITDB_ARGS: "--nosync"
-        ports:
-          - 5432:5432
         options: --tmpfs /var/lib/postgresql/data:rw
       elasticsearch:
         image: elasticsearch:6.4.0
         env:
           discovery.type: single-node
-        ports:
-          - 9200:9200
       minio:
         image: bitnami/minio:latest
-        ports:
-          - 9000:9000
         env:
           MINIO_ACCESS_KEY: ${{ env.SIMPLIFIED_TEST_MINIO_USER }}
           MINIO_SECRET_KEY: ${{ env.SIMPLIFIED_TEST_MINIO_PASSWORD }}
 
     steps:
       - uses: actions/checkout@v2
-        with:
-          submodules: recursive
 
       - name: Configure Elasticsearch Container
         run: |
           docker exec ${{ job.services.elasticsearch.id }} elasticsearch-plugin install analysis-icu
           docker restart ${{ job.services.elasticsearch.id }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build image for testing
+        uses: docker/build-push-action@v2
         with:
-          python-version: 2.7
-
-      - name: Install Apt Packages
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes ${{ env.APT_PACKAGES }}
-
-      - name: Pip Package Cache
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install Python Packages
-        run: |
-          pip install --upgrade pip
-          pip install wheel
-          pip install -r requirements.txt
-          python -m textblob.download_corpora
+          context: .
+          file: ./docker/Dockerfile.exec
+          load: true
+          tags: circ-exec
 
       - name: Run Core Tests
-        run: nosetests -v core/tests
-        env:
-          TESTING: true
-          PYTHONWARNINGS: ignore
-
+        run: >
+          docker run
+          --network ${{ job.services.postgres.network }}
+          --it
+          -e TESTING=true
+          -e PYTHONWARNINGS=ignore
+          -e SIMPLIFIED_DB_TASK="ignore"
+          -e SIMPLIFIED_TEST_DATABASE="postgres://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@postgres:5432/${{ env.POSTGRES_DB }}"
+          -e SIMPLIFIED_TEST_ELASTICSEARCH="http://elasticsearch:9200"
+          -e SIMPLIFIED_TEST_MINIO_ENDPOINT_URL="http://minio:9000"
+          -e SIMPLIFIED_TEST_MINIO_USER="${{ env.SIMPLIFIED_TEST_MINIO_USER }}"
+          -e SIMPLIFIED_TEST_MINIO_PASSWORD="${{ env.SIMPLIFIED_TEST_MINIO_PASSWORD }}"
+          -w /var/www/circulation
+          circ-exec
+          /bin/bash -c
+          "source env/bin/activate && nosetests -v core/tests"
 
   build-docker:
     name: Build and push docker images
@@ -145,19 +120,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-        with:
-          submodules: recursive
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
-
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
 
       - name: Login to DockerHub
         uses: docker/login-action@v1
@@ -171,6 +136,18 @@ jobs:
           echo ::set-output name=SOURCE_BRANCH::$(echo $GITHUB_REF | sed 's|refs/heads/||' | sed 's|/|-|')
           echo ::set-output name=SOURCE_TAG::$(echo $GITHUB_REF | sed 's|refs/tags/||' | sed 's|/|-|')
 
+      - name: Build and push circ-scripts image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./docker/Dockerfile.scripts
+          push: true
+          tags: ${{ github.repository_owner }}/circ-scripts:${{ steps.branch_name.outputs.SOURCE_BRANCH }}
+          build-args: |
+            repo=${{ github.repository }}
+            version=${{ github.sha }}
+          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
+
       - name: Build and push circ-web image
         uses: docker/build-push-action@v2
         with:
@@ -182,17 +159,3 @@ jobs:
             repo=${{ github.repository }}
             version=${{ github.sha }}
           cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
-
-      - name: Build and push circ-scripts image
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./docker/Dockerfile.scripts
-          push: true
-          tags: ${{ github.repository_owner }}/circ-scripts:${{ steps.branch_name.outputs.SOURCE_BRANCH }}
-          build-args: |
-            repo=${{ github.repository }}
-            version=${{ github.sha }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
