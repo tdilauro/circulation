@@ -6,7 +6,6 @@ set -x
 
 # add packages needed for final image
 apt-get update
-apt-get upgrade -y -o Dpkg::Options::="--force-confold"
 $minimal_apt_get_install --no-upgrade \
   python2.7 \
   python-nose \

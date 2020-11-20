@@ -12,7 +12,6 @@ echo "deb-src https://deb.nodesource.com/node_10.x bionic main" >> /etc/apt/sour
 
 # Add packages we need to build the app and its dependancies
 apt-get update
-apt-get upgrade -y -o Dpkg::Options::="--force-confold"
 $minimal_apt_get_install \
   python-dev \
   python2.7 \
