@@ -27,6 +27,9 @@ MAINTAINER Library Simplified <info@librarysimplified.org>
 
 ENV SIMPLIFIED_DB_TASK "auto"
 
+# Get OS Package Updates
+RUN apt-get update && apt-get upgrade -y -o Dpkg::Options::="--force-confold"
+
 # Common steps across all images
 COPY docker/app /ls_build
 RUN /ls_build/prepare.sh &&\
