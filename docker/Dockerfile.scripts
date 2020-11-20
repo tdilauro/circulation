@@ -29,7 +29,7 @@ ENV SIMPLIFIED_DB_TASK "auto"
 
 # Common steps across all images
 COPY docker/app /ls_build
-RUN /ls_build/packages.sh &&\
+RUN /ls_build/prepare.sh &&\
     /ls_build/install.sh &&\
     /ls_build/logrotate.sh &&\
     /bd_build/cleanup.sh
