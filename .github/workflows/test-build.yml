@@ -34,7 +34,7 @@ jobs:
           file: ./docker/Dockerfile.exec
           load: true
           tags: circulation
-          cache-from: ${{ github.repository_owner }}/circ-cache
+          cache-from: type=registry,${{ github.repository_owner }}/circ-cache
           cache-to: type=registry,${{ github.repository_owner }}/circ-cache,mode=max
 
       - name: Run Circulation Tests
@@ -95,7 +95,7 @@ jobs:
           file: ./docker/Dockerfile.exec
           load: true
           tags: circulation
-          cache-from: ${{ github.repository_owner }}/circ-cache
+          cache-from: type=registry,${{ github.repository_owner }}/circ-cache
           cache-to: type=registry,${{ github.repository_owner }}/circ-cache,mode=max
 
       - name: Run Core Tests
@@ -145,7 +145,7 @@ jobs:
           file: ./docker/Dockerfile.exec
           push: true
           tags: ${{ github.repository_owner }}/circ-exec:${{ steps.branch_name.outputs.SOURCE_BRANCH }}
-          cache-from: ${{ github.repository_owner }}/circ-cache
+          cache-from: type=registry,${{ github.repository_owner }}/circ-cache
           cache-to: type=registry,${{ github.repository_owner }}/circ-cache,mode=max
 
       - name: Build and push circ-scripts image
@@ -155,7 +155,7 @@ jobs:
           file: ./docker/Dockerfile.scripts
           push: true
           tags: ${{ github.repository_owner }}/circ-scripts:${{ steps.branch_name.outputs.SOURCE_BRANCH }}
-          cache-from: ${{ github.repository_owner }}/circ-cache
+          cache-from: type=registry,${{ github.repository_owner }}/circ-cache
           cache-to: type=registry,${{ github.repository_owner }}/circ-cache,mode=max
 
       - name: Build and push circ-web image
@@ -165,5 +165,5 @@ jobs:
           file: ./docker/Dockerfile.webapp
           push: true
           tags: ${{ github.repository_owner }}/circ-webapp:${{ steps.branch_name.outputs.SOURCE_BRANCH }}
-          cache-from: ${{ github.repository_owner }}/circ-cache
+          cache-from: type=registry,${{ github.repository_owner }}/circ-cache
           cache-to: type=registry,${{ github.repository_owner }}/circ-cache,mode=max
