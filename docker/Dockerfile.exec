@@ -14,9 +14,10 @@ FROM phusion/baseimage:bionic-1.0.0 AS app-builder
 # Build virtualenv and nodejs dist folder
 COPY docker/builder /ls_build
 RUN /ls_build/prepare.sh
-COPY . /var/www/circulation
-RUN /ls_build/build.sh &&\
-    /ls_build/cleanup.sh
+COPY requirements.txt /var/www/circulation/
+COPY core/requirements.txt /var/www/circulation/core/
+COPY api/admin/*.json /var/www/circulation/api/admin/
+RUN /ls_build/build.sh
 
 ###############################################################################
 ## Final image
@@ -36,14 +37,16 @@ RUN /ls_build/prepare.sh &&\
     /ls_build/install.sh &&\
     /ls_build/logrotate.sh &&\
     /bd_build/cleanup.sh
-
-# Setup App
 COPY --from=app-builder /usr/lib/nltk_data /usr/lib/nltk_data
-COPY --from=app-builder /var/www/circulation /var/www/circulation
-RUN /ls_build/app.sh && /bd_build/cleanup.sh
+COPY --from=app-builder /var/www/circulation/env /var/www/circulation/env
+COPY --from=app-builder /var/www/circulation/api/admin/node_modules/simplified-circulation-web/dist /var/www/circulation/api/admin/node_modules/simplified-circulation-web/dist
+RUN /ls_build/app.sh
 
 # Copy LCP
 COPY --from=lcp-builder /go/bin/lcpencrypt /go/bin/lcpencrypt
+
+# Copy app
+COPY . /var/www/circulation
 
 VOLUME /var/log
 WORKDIR /home/simplified/circulation/bin
