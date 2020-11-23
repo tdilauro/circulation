@@ -23,15 +23,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build image for testing
         uses: docker/build-push-action@v2
@@ -41,7 +37,6 @@ jobs:
           load: true
           tags: circulation
           cache-from: type=registry,ref=${{ github.repository_owner }}/circ-cache
-          cache-to: type=registry,ref=${{ github.repository_owner }}/circ-cache,mode=max
 
       - name: Run Circulation Tests
         run: >
@@ -85,6 +80,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: true
 
       - name: Configure Elasticsearch Container
         run: |
@@ -94,12 +91,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
-      - name: Login to DockerHub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Build image for testing
         uses: docker/build-push-action@v2
         with:
@@ -108,7 +99,6 @@ jobs:
           load: true
           tags: circulation
           cache-from: type=registry,ref=${{ github.repository_owner }}/circ-cache
-          cache-to: type=registry,ref=${{ github.repository_owner }}/circ-cache,mode=max
 
       - name: Run Core Tests
         run: >
@@ -134,6 +124,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
@@ -168,7 +160,7 @@ jobs:
           push: true
           tags: ${{ github.repository_owner }}/circ-scripts:${{ steps.branch_name.outputs.SOURCE_BRANCH }}
           cache-from: type=registry,ref=${{ github.repository_owner }}/circ-cache
-          cache-to: type=registry,ref=${{ github.repository_owner }}/circ-cache,mode=max
+          cache-to: type=registry,ref=${{ github.repository_owner }}/circ-cache
 
       - name: Build and push circ-web image
         uses: docker/build-push-action@v2
@@ -178,4 +170,4 @@ jobs:
           push: true
           tags: ${{ github.repository_owner }}/circ-webapp:${{ steps.branch_name.outputs.SOURCE_BRANCH }}
           cache-from: type=registry,ref=${{ github.repository_owner }}/circ-cache
-          cache-to: type=registry,ref=${{ github.repository_owner }}/circ-cache,mode=max
+          cache-to: type=registry,ref=${{ github.repository_owner }}/circ-cache
