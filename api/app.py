@@ -20,12 +20,18 @@ from core.log import LogConfiguration
 from core.util import LanguageCodes
 from flask_babel import Babel
 
+from aws_xray_sdk.core import xray_recorder, patch_all as xray_patch_all
+from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 
 app = Flask(__name__)
 app._db = None
 app.config['BABEL_DEFAULT_LOCALE'] = LanguageCodes.three_to_two[Configuration.localization_languages()[0]]
 app.config['BABEL_TRANSLATION_DIRECTORIES'] = "../translations"
 babel = Babel(app)
+
+xray_recorder.configure(service='SimplyE')
+XRayMiddleware(app, xray_recorder)
+xray_patch_all(double_patch=True)
 
 @app.before_first_request
 def initialize_database(autoinitialize=True):
