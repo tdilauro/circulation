@@ -2,22 +2,17 @@
 set -ex
 
 # Configure uwsgi.
-cp /ls_build/uwsgi/uwsgi.ini /var/www/circulation/uwsgi.ini
-chown simplified:simplified /var/www/circulation/uwsgi.ini
-mkdir /var/log/uwsgi
-chown -R simplified:simplified /var/log/uwsgi
+mkdir /etc/uwsgi/
+cp /ls_build/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
 
-# Defer uwsgi service to simplified.
-mkdir /etc/service/runsvdir-simplified
-cp /ls_build/uwsgi/simplified_user.runit /etc/service/runsvdir-simplified/run
+# Make log folder
+mkdir /var/log/uwsgi
+cp /ls_build/uwsgi/syslog.conf /etc/syslog-ng/conf.d/uwsgi.conf
 
 # Prepare uwsgi for runit.
-app_home=/home/simplified
-mkdir -p $app_home/service/uwsgi
-cp /ls_build/uwsgi/uwsgi.runit $app_home/service/uwsgi/run
-chown -R simplified:simplified $app_home/service
+mkdir /etc/service/uwsgi
+cp /ls_build/uwsgi/uwsgi.runit /etc/service/uwsgi/run
 
-# Create an alias to restart the application.
-touch $app_home/.bash_aliases
-echo "alias restart_app=\`touch ~/circulation/uwsgi.ini\`" >> $app_home/.bash_aliases
-chown -R simplified:simplified $app_home/.bash_aliases
+# Make folder for uwsgi sock
+mkdir /var/run/uwsgi
+chown simplified:simplified /var/run/uwsgi
