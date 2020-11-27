@@ -142,7 +142,7 @@ def setup_admin_controllers(manager):
     manager.admin_library_settings_controller = LibrarySettingsController(manager)
     from api.admin.controller.individual_admin_settings import IndividualAdminSettingsController
     manager.admin_individual_admin_settings_controller = IndividualAdminSettingsController(manager)
-    from api.admin.controller.sitewide_services import *
+    from api.admin.controller.sitewide_services import (SitewideServicesController, LoggingServicesController, SearchServicesController)
     manager.admin_sitewide_services_controller = SitewideServicesController(manager)
     manager.admin_logging_services_controller = LoggingServicesController(manager)
     from api.admin.controller.search_service_self_tests import SearchServiceSelfTestsController
@@ -150,7 +150,7 @@ def setup_admin_controllers(manager):
     manager.admin_search_services_controller = SearchServicesController(manager)
     from api.admin.controller.storage_services import StorageServicesController
     manager.admin_storage_services_controller = StorageServicesController(manager)
-    from api.admin.controller.catalog_services import *
+    from api.admin.controller.catalog_services import CatalogServicesController
     manager.admin_catalog_services_controller = CatalogServicesController(manager)
 
 class AdminController(object):
