@@ -114,7 +114,6 @@ from core.util.opds_writer import (
     OPDSFeed,
 )
 
-
 class Script(CoreScript):
     def load_config(self):
         if not Configuration.instance:

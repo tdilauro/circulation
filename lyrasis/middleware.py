@@ -5,7 +5,17 @@ from aws_xray_sdk.ext.util import \
     construct_xray_header, \
     calculate_segment_name, \
     calculate_sampling_decision, prepare_response_header
-from flask import request
+from flask import request, session
+from lyrasis.util import put_annotations
+import os
+
+# Define our own middleware class for profiling with AWS xray. This is heavily based on
+# https://github.com/aws/aws-xray-sdk-python/blob/master/aws_xray_sdk/ext/flask/middleware.py
+# but we make our own class because that one assumes all requests to the database happen in the main
+# flask request. In the case of Simplified this is not true, requests to the database happen before and during
+# teardown, so this class starts a segment earlier and ends it later. Additionally this class takes advantage
+# of some Simplified specific information in the request, so that we gather more data about the library and
+# use the request is coming from.
 
 
 class LyrasisXRayMiddleware(object):
@@ -17,8 +27,8 @@ class LyrasisXRayMiddleware(object):
         self._first_request = False
         self._xray_header = headers
 
-        # Directly manipulate the app to make sure these functions
-        # are inserted first, so they run in the correct order
+        # Directly manipulate the app lists to make sure these functions are inserted first,
+        # so they run before any of the simplified functions.
         self.app.before_first_request_funcs.insert(0, self._before_first_request)
         self.app.before_request_funcs.setdefault(None, []).insert(0, self._before_request)
         self.app.after_request_funcs.setdefault(None, []).insert(0, self._after_request)
@@ -30,10 +40,12 @@ class LyrasisXRayMiddleware(object):
     def _before_first_request(self):
         self._before_request()
         segment = self._recorder.current_segment()
+        # Add an annotation for the first request, since it does extra caching work.
         segment.put_annotation("request", "first")
         self._first_request = True
 
     def _before_request(self):
+        # Make sure we don't start a new segment if one was already started above
         if self._first_request:
             self._first_request = False
             return
@@ -42,7 +54,11 @@ class LyrasisXRayMiddleware(object):
         xray_header = construct_xray_header(headers)
         req = request._get_current_object()
 
-        name = calculate_segment_name(req.host, self._recorder)
+        # Let us define our own service name with an ENV variable
+        if 'XRAY_SERVICE_NAME' in os.environ:
+            name = os.environ['XRAY_SERVICE_NAME']
+        else:
+            name = calculate_segment_name(req.host, self._recorder)
 
         sampling_req = {
             'host': req.host,
@@ -67,6 +83,9 @@ class LyrasisXRayMiddleware(object):
         segment.put_http_meta(http.METHOD, req.method)
         segment.put_http_meta(http.USER_AGENT, headers.get('User-Agent'))
 
+        # This allows us to add annotations based on some environment variables
+        put_annotations(segment, 'web')
+
         client_ip = headers.get('X-Forwarded-For') or headers.get('HTTP_X_FORWARDED_FOR')
         if client_ip:
             segment.put_http_meta(http.CLIENT_IP, client_ip)
@@ -77,6 +96,19 @@ class LyrasisXRayMiddleware(object):
     def _after_request(self, response):
         segment = self._recorder.current_segment()
         segment.put_http_meta(http.STATUS, response.status_code)
+
+        # Add library shortname
+        if hasattr(request, 'library'):
+            segment.put_annotation('library', str(request.library.short_name))
+
+        # Add patron data
+        if hasattr(request, 'patron'):
+            segment.set_user(str(request.patron.authorization_identifier))
+            segment.put_annotation('barcode', str(request.patron.authorization_identifier))
+
+        # Add admin UI username
+        if 'admin_email' in session:
+            segment.set_user(session['admin_email'])
 
         if self._xray_header:
             origin_header = segment.get_origin_trace_header()
@@ -105,5 +137,4 @@ class LyrasisXRayMiddleware(object):
         segment.add_exception(exception, stack)
 
     def _teardown_appcontext(self, exception):
-        segment = self._recorder.current_segment()
         self._recorder.end_segment()
