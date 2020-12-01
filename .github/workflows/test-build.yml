@@ -46,6 +46,7 @@ jobs:
           -e PYTHONWARNINGS=ignore
           -e SIMPLIFIED_DB_TASK="ignore"
           -e SIMPLIFIED_TEST_DATABASE='postgres://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@postgres:5432/${{ env.POSTGRES_DB }}'
+          -e AWS_XRAY_SDK_ENABLED="false"
           -w /var/www/circulation
           circulation
           /bin/bash -c
@@ -112,6 +113,7 @@ jobs:
           -e SIMPLIFIED_TEST_MINIO_ENDPOINT_URL="http://minio:9000"
           -e SIMPLIFIED_TEST_MINIO_USER="${{ env.SIMPLIFIED_TEST_MINIO_USER }}"
           -e SIMPLIFIED_TEST_MINIO_PASSWORD="${{ env.SIMPLIFIED_TEST_MINIO_PASSWORD }}"
+          -e AWS_XRAY_SDK_ENABLED="false"
           -w /var/www/circulation
           circulation
           /bin/bash -c
