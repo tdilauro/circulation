@@ -31,4 +31,4 @@ $minimal_apt_get_install \
 
 # Use the latest version of pip to install a virtual environment for the app.
 python -m easy_install pip
-pip install --no-cache-dir virtualenv virtualenvwrapper
+pip install --no-cache-dir "virtualenv==20.0.4" virtualenvwrapper
