@@ -22,11 +22,10 @@ def patch_scripts(module):
     if _PATCHED_SCRIPTS:
         return
     _PATCHED_SCRIPTS = True
-    import lyrasis.scripts
     from lyrasis.util import setup_xray
     from lyrasis.scripts import patch as do_patch_scripts
     setup_xray()
-    do_patch_scripts()
+    do_patch_scripts(module)
 
 
 _PATCHED_APP = False
@@ -38,7 +37,6 @@ def patch_app(module):
     if _PATCHED_APP:
         return
     _PATCHED_APP = True
-    module._patched = True
     from lyrasis.util import setup_xray
     from lyrasis.middleware import LyrasisXRayMiddleware
     from aws_xray_sdk.core import xray_recorder
