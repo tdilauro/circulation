@@ -1,6 +1,7 @@
 import os
 from core.config import Configuration
 from lyrasis.sqlalchemy import patch as sqlalchemy_patch
+from lyrasis.requests import patch as requests_patch
 from aws_xray_sdk.core import xray_recorder, patch as xray_patch
 
 
@@ -27,5 +28,6 @@ def setup_xray():
         return
     xray_recorder.configure(service="SimplyE", streaming_threshold=5, context_missing='LOG_ERROR')
     sqlalchemy_patch()
-    xray_patch(['requests', 'httplib'])
+    requests_patch()
+    xray_patch(['httplib', 'boto3'])
     _XRAY_SETUP = True
