@@ -40,16 +40,11 @@ class LyrasisXRayMiddleware(object):
     def _before_first_request(self):
         self._before_request()
         segment = self._recorder.current_segment()
-        # Add an annotation for the first request, since it does extra caching work.
-        segment.put_annotation("request", "first")
-        self._first_request = True
+        if segment is not None:
+            # Add an annotation for the first request, since it does extra caching work.
+            segment.put_annotation("request", "first")
 
     def _before_request(self):
-        # Make sure we don't start a new segment if one was already started above
-        if self._first_request:
-            self._first_request = False
-            return
-
         headers = request.headers
         xray_header = construct_xray_header(headers)
         req = request._get_current_object()
@@ -77,47 +72,48 @@ class LyrasisXRayMiddleware(object):
             parent_id=xray_header.parent,
             sampling=sampling_decision,
         )
+        if segment is not None:
+            segment.save_origin_trace_header(xray_header)
+            segment.put_http_meta(http.URL, req.base_url)
+            segment.put_http_meta(http.METHOD, req.method)
+            segment.put_http_meta(http.USER_AGENT, headers.get('User-Agent'))
 
-        segment.save_origin_trace_header(xray_header)
-        segment.put_http_meta(http.URL, req.base_url)
-        segment.put_http_meta(http.METHOD, req.method)
-        segment.put_http_meta(http.USER_AGENT, headers.get('User-Agent'))
+            # This allows us to add annotations based on some environment variables
+            put_annotations(segment, 'web')
 
-        # This allows us to add annotations based on some environment variables
-        put_annotations(segment, 'web')
-
-        client_ip = headers.get('X-Forwarded-For') or headers.get('HTTP_X_FORWARDED_FOR')
-        if client_ip:
-            segment.put_http_meta(http.CLIENT_IP, client_ip)
-            segment.put_http_meta(http.X_FORWARDED_FOR, True)
-        else:
-            segment.put_http_meta(http.CLIENT_IP, req.remote_addr)
+            client_ip = headers.get('X-Forwarded-For') or headers.get('HTTP_X_FORWARDED_FOR')
+            if client_ip:
+                segment.put_http_meta(http.CLIENT_IP, client_ip)
+                segment.put_http_meta(http.X_FORWARDED_FOR, True)
+            else:
+                segment.put_http_meta(http.CLIENT_IP, req.remote_addr)
 
     def _after_request(self, response):
         segment = self._recorder.current_segment()
-        segment.put_http_meta(http.STATUS, response.status_code)
+        if segment is not None:
+            segment.put_http_meta(http.STATUS, response.status_code)
 
-        # Add library shortname
-        if hasattr(request, 'library'):
-            segment.put_annotation('library', str(request.library.short_name))
+            # Add library shortname
+            if hasattr(request, 'library'):
+                segment.put_annotation('library', str(request.library.short_name))
 
-        # Add patron data
-        if hasattr(request, 'patron'):
-            segment.set_user(str(request.patron.authorization_identifier))
-            segment.put_annotation('barcode', str(request.patron.authorization_identifier))
+            # Add patron data
+            if hasattr(request, 'patron'):
+                segment.set_user(str(request.patron.authorization_identifier))
+                segment.put_annotation('barcode', str(request.patron.authorization_identifier))
 
-        # Add admin UI username
-        if 'admin_email' in session:
-            segment.set_user(session['admin_email'])
+            # Add admin UI username
+            if 'admin_email' in session:
+                segment.set_user(session['admin_email'])
 
-        if self._xray_header:
-            origin_header = segment.get_origin_trace_header()
-            resp_header_str = prepare_response_header(origin_header, segment)
-            response.headers[http.XRAY_HEADER] = resp_header_str
+            if self._xray_header:
+                origin_header = segment.get_origin_trace_header()
+                resp_header_str = prepare_response_header(origin_header, segment)
+                response.headers[http.XRAY_HEADER] = resp_header_str
 
-        cont_len = response.headers.get('Content-Length')
-        if cont_len:
-            segment.put_http_meta(http.CONTENT_LENGTH, int(cont_len))
+            cont_len = response.headers.get('Content-Length')
+            if cont_len:
+                segment.put_http_meta(http.CONTENT_LENGTH, int(cont_len))
 
         return response
 
@@ -129,12 +125,10 @@ class LyrasisXRayMiddleware(object):
             segment = self._recorder.current_segment()
         except Exception:
             pass
-        if not segment:
-            return
-
-        segment.put_http_meta(http.STATUS, 500)
-        stack = stacktrace.get_stacktrace(limit=self._recorder._max_trace_back)
-        segment.add_exception(exception, stack)
+        if segment is not None:
+            segment.put_http_meta(http.STATUS, 500)
+            stack = stacktrace.get_stacktrace(limit=self._recorder._max_trace_back)
+            segment.add_exception(exception, stack)
 
     def _teardown_appcontext(self, exception):
         self._recorder.end_segment()
