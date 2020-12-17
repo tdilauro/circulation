@@ -1,9 +1,7 @@
 import os
 from core.config import Configuration
-from lyrasis.sqlalchemy import patch as sqlalchemy_patch
-from lyrasis.httplib import patch as httplib_patch, add_ignore as httplib_add_ignore
-from lyrasis.requests import patch as requests_patch
 from aws_xray_sdk.core import xray_recorder, patch as xray_patch
+from aws_xray_sdk.ext.httplib import add_ignored as httplib_add_ignored
 
 
 _XRAY_SETUP = False
@@ -28,8 +26,6 @@ def setup_xray():
     if _XRAY_SETUP:
         return
     xray_recorder.configure(service="SimplyE", streaming_threshold=5, context_missing='LOG_ERROR')
-    sqlalchemy_patch()
-    httplib_add_ignore(host='logs.us-west-2.amazonaws.com')
-    httplib_patch()
-    requests_patch()
+    xray_patch(('httplib', 'sqlalchemy_core', 'requests'))
+    httplib_add_ignored(hostname='logs.*.amazonaws.com')
     _XRAY_SETUP = True

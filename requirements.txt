@@ -61,4 +61,4 @@ websocket-client==0.57.0
 xmlsec==1.3.8
 
 # LYRASIS Tracing
-aws-xray-sdk
+git+https://github.com/jonathangreen/aws-xray-sdk-python.git@lyrasis#egg=aws-xray-sdk
