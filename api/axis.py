@@ -1408,12 +1408,13 @@ class AvailabilityResponseParser(ResponseParser):
                 data_source_name=DataSource.AXIS_360,
                 identifier_type=self.id_type,
                 identifier=axis_identifier,
-                verify=self.api.verify_certificate
             )
 
             if download_url and self.internal_format != self.api.AXISNOW:
                 # The patron wants a direct link to the book, which we can deliver
                 # immediately, without making any more API requests.
+                kwargs["verify"] = self.api.verify_certificate
+
                 fulfillment = FulfillmentInfo(
                     collection=self.collection,
                     content_link=download_url,
