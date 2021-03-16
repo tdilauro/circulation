@@ -113,11 +113,19 @@ class Axis360API(Authenticator, BaseCirculationAPI, HasCollectionSelfTests):
         "qa" : QA_BASE_URL,
     }
     DATE_FORMAT = "%m-%d-%Y %H:%M:%S"
+    VERIFY_CERTIFICATE = "verify_certificate"
 
     SETTINGS = [
         { "key": ExternalIntegration.USERNAME, "label": _("Username"), "required": True },
         { "key": ExternalIntegration.PASSWORD, "label": _("Password"), "required": True },
         { "key": Collection.EXTERNAL_ACCOUNT_ID_KEY, "label": _("Library ID"), "required": True },
+        { "key": VERIFY_CERTIFICATE, "label": _("Certificate Verification"),
+          "type": "select", "options": [
+              { "key": "true", "label": _("Verify Certificate Normally (Required for production)") },
+              { "key": "false", "label": _("Ignore Certificate Problems (For temporary testing / QA only)") },
+          ],
+          "default": "true"
+        },
         { "key": ExternalIntegration.URL,
           "label": _("Server"),
           "default": PRODUCTION_BASE_URL,
@@ -170,6 +178,10 @@ class Axis360API(Authenticator, BaseCirculationAPI, HasCollectionSelfTests):
         self.library_id = collection.external_account_id
         self.username = collection.external_integration.username
         self.password = collection.external_integration.password
+        self.verify_certificate = collection.external_integration.setting(
+            self.VERIFY_CERTIFICATE).json_value
+        if self.verify_certificate is None:
+            self.verify_certificate = True
 
         # Convert the nickname for a server into an actual URL.
         base_url = collection.external_integration.url or self.PRODUCTION_BASE_URL
@@ -556,11 +568,12 @@ class Axis360API(Authenticator, BaseCirculationAPI, HasCollectionSelfTests):
     def _make_request(self, url, method, headers, data=None, params=None,
                       **kwargs):
         """Actually make an HTTP request."""
-        return HTTP.request_with_timeout(
+        response = HTTP.request_with_timeout(
             method, url, headers=headers, data=data,
             params=params, **kwargs
         )
-
+        return response
+    
 class Axis360CirculationMonitor(CollectionMonitor, TimelineMonitor):
 
     """Maintain LicensePools for Axis 360 titles.
@@ -663,6 +676,7 @@ class MockAxis360API(Axis360API):
         )
 
     def _make_request(self, url, *args, **kwargs):
+        kwargs['verify'] = False
         self.requests.append([url, args, kwargs])
         response = self.responses.pop()
         return HTTP._process_response(
@@ -1394,7 +1408,8 @@ class AvailabilityResponseParser(ResponseParser):
             kwargs = dict(
                 data_source_name=DataSource.AXIS_360,
                 identifier_type=self.id_type,
-                identifier=axis_identifier
+                identifier=axis_identifier,
+                verify=self.api.verify_certificate,
             )
 
             if download_url and self.internal_format != self.api.AXISNOW:

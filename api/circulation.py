@@ -165,7 +165,7 @@ class FulfillmentInfo(CirculationInfo):
 
     def __init__(self, collection, data_source_name, identifier_type,
                  identifier, content_link, content_type, content,
-                 content_expires):
+                 content_expires, **kwargs):
         """Constructor.
 
         One and only one of `content_link` and `content` should be
@@ -199,6 +199,7 @@ class FulfillmentInfo(CirculationInfo):
         self.content_type = content_type
         self.content = content
         self.content_expires = content_expires
+        self.kwargs = kwargs
 
     def __repr__(self):
         if self.content:
