@@ -568,11 +568,10 @@ class Axis360API(Authenticator, BaseCirculationAPI, HasCollectionSelfTests):
     def _make_request(self, url, method, headers, data=None, params=None,
                       **kwargs):
         """Actually make an HTTP request."""
-        response = HTTP.request_with_timeout(
+        return HTTP.request_with_timeout(
             method, url, headers=headers, data=data,
             params=params, **kwargs
         )
-        return response
     
 class Axis360CirculationMonitor(CollectionMonitor, TimelineMonitor):
 
