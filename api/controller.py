@@ -1673,6 +1673,8 @@ class LoanController(CirculationManagerController):
                 try:
                     if fulfillment.kwargs:
                         verify = fulfillment.kwargs.get("verify", True)
+                    else:
+                        verify = True
                     status_code, headers, content = do_get(fulfillment.content_link, headers=encoding_header, verify=verify)
                     headers = dict(headers)
                 except RemoteIntegrationException, e:

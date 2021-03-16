@@ -1408,7 +1408,7 @@ class AvailabilityResponseParser(ResponseParser):
                 data_source_name=DataSource.AXIS_360,
                 identifier_type=self.id_type,
                 identifier=axis_identifier,
-                verify=self.api.verify_certificate,
+                verify=self.api.verify_certificate
             )
 
             if download_url and self.internal_format != self.api.AXISNOW:
