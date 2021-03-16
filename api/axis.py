@@ -572,7 +572,7 @@ class Axis360API(Authenticator, BaseCirculationAPI, HasCollectionSelfTests):
             method, url, headers=headers, data=data,
             params=params, **kwargs
         )
-    
+
 class Axis360CirculationMonitor(CollectionMonitor, TimelineMonitor):
 
     """Maintain LicensePools for Axis 360 titles.
