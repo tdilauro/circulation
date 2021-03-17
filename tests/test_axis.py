@@ -398,9 +398,20 @@ class TestAxis360API(Axis360Test):
         fulfillment = fulfill(internal_format="ePub")
         assert isinstance(fulfillment, FulfillmentInfo)
         assert not isinstance(fulfillment, Axis360FulfillmentInfo)
+        # By default verify should be True in the kwargs for this request
+        assert fulfillment.kwargs["verify"]
         assert DeliveryMechanism.ADOBE_DRM == fulfillment.content_type
         assert "http://fulfillment/" == fulfillment.content_link
         assert None == fulfillment.content
+
+        # Test to make sure that changing the setting gets through to the
+        # kwargs of the fulfillment.
+        self.api.verify_certificate = False
+        data = self.sample_data("availability_with_loan_and_hold.xml")
+        self.api.queue_response(200, content=data)
+        fulfillment = fulfill(internal_format="ePub")
+        assert isinstance(fulfillment, FulfillmentInfo)
+        assert not fulfillment.kwargs["verify"]
 
         # If we ask for AxisNow format, we get an Axis360FulfillmentInfo
         # containing an AxisNow manifest document.
@@ -432,6 +443,18 @@ class TestAxis360API(Axis360Test):
         self.api.queue_response(200, content=data)
         fulfillment = fulfill(internal_format="irrelevant")
         assert isinstance(fulfillment, Axis360FulfillmentInfo)
+
+    def test_verify_certificate(self):
+        """Test the ability to set the kwargs for a FulfillmentInfo to
+        bypass the direct download SSL certificate verification.
+        """
+
+        api = MockAxis360API(self._db, self.collection)
+        #By default, verify_certificate is True.
+        assert True == api.verify_certificate
+
+        api.verify_certificate = False
+        assert False == api.verify_certificate
 
     def test_patron_activity(self):
         """Test the method that locates all current activity
