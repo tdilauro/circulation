@@ -675,7 +675,6 @@ class MockAxis360API(Axis360API):
         )
 
     def _make_request(self, url, *args, **kwargs):
-        kwargs['verify'] = False
         self.requests.append([url, args, kwargs])
         response = self.responses.pop()
         return HTTP._process_response(
