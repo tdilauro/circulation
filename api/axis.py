@@ -567,11 +567,19 @@ class Axis360API(Authenticator, BaseCirculationAPI, HasCollectionSelfTests):
 
     def _make_request(self, url, method, headers, data=None, params=None,
                       **kwargs):
+
+        self._update_request_kwargs(kwargs)
         """Actually make an HTTP request."""
         return HTTP.request_with_timeout(
             method, url, headers=headers, data=data,
             params=params, **kwargs
         )
+
+    def _update_request_kwargs(self, kwargs):
+        """Modify the kwargs for the HTTP request to reflect
+        the api setting in a testable way.
+        """
+        kwargs["verify"] = self.verify_certificate
 
 class Axis360CirculationMonitor(CollectionMonitor, TimelineMonitor):
 

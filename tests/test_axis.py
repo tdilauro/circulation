@@ -456,6 +456,11 @@ class TestAxis360API(Axis360Test):
         api.verify_certificate = False
         assert False == api.verify_certificate
 
+        kwargs = dict(verify=False)
+        api.verify_certificate = "arbitary value"
+        api._update_request_kwargs(kwargs)
+        assert kwargs["verify"] == "arbitrary value"
+
     def test_patron_activity(self):
         """Test the method that locates all current activity
         for a patron.
