@@ -457,7 +457,7 @@ class TestAxis360API(Axis360Test):
         assert False == api.verify_certificate
 
         kwargs = dict(verify=False)
-        api.verify_certificate = "arbitary value"
+        api.verify_certificate = "arbitrary value"
         api._update_request_kwargs(kwargs)
         assert kwargs["verify"] == "arbitrary value"
 
