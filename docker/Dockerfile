@@ -1,4 +1,11 @@
 ###############################################################################
+## Build lcpencrypt
+###############################################################################
+
+FROM amd64/golang AS lcp-builder
+RUN go get -v github.com/readium/readium-lcp-server/lcpencrypt
+
+###############################################################################
 ## Build the app
 ###############################################################################
 
@@ -13,11 +20,10 @@ COPY api/admin/*.json /var/www/circulation/api/admin/
 RUN /ls_build/build.sh
 
 ###############################################################################
-## Final image
+## Base image
 ###############################################################################
 
-FROM phusion/baseimage:bionic-1.0.0
-MAINTAINER Library Simplified <info@librarysimplified.org>
+FROM phusion/baseimage:bionic-1.0.0 AS base
 
 ENV SIMPLIFIED_DB_TASK "auto"
 
@@ -34,6 +40,50 @@ COPY --from=app-builder /usr/lib/nltk_data /usr/lib/nltk_data
 COPY --from=app-builder /var/www/circulation/env /var/www/circulation/env
 COPY --from=app-builder /var/www/circulation/api/admin/node_modules/simplified-circulation-web/dist /var/www/circulation/api/admin/node_modules/simplified-circulation-web/dist
 RUN /ls_build/app.sh
+
+# Copy LCP
+COPY --from=lcp-builder /go/bin/lcpencrypt /go/bin/lcpencrypt
+
+###############################################################################
+## Exec image
+###############################################################################
+
+FROM base as exec
+
+# Copy app
+COPY . /var/www/circulation
+
+VOLUME /var/log
+WORKDIR /home/simplified/circulation/bin
+
+CMD ["/sbin/my_init", "--skip-runit", "--quiet", "--", \
+     "/bin/bash", "-c", \
+     "source ../env/bin/activate && ./${SIMPLIFIED_SCRIPT_NAME}"]
+
+###############################################################################
+## Scripts image
+###############################################################################
+
+FROM base as scripts
+
+# Setup script specific parts
+COPY docker/scripts /ls_build
+RUN /ls_build/cron.sh &&\
+    /bd_build/cleanup.sh
+
+# Copy app
+COPY . /var/www/circulation
+
+VOLUME /var/log
+WORKDIR /home/simplified/circulation/bin
+
+CMD ["/sbin/my_init"]
+
+###############################################################################
+## Webapp image
+###############################################################################
+
+FROM base as webapp
 
 # Setup webapp specific parts
 COPY docker/web /ls_build
