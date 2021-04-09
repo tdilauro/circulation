@@ -14,8 +14,8 @@ FROM phusion/baseimage:bionic-1.0.0 AS app-builder
 # Build virtualenv and nodejs dist folder
 COPY docker/builder /ls_build
 RUN /ls_build/prepare.sh
-COPY requirements.txt /var/www/circulation/
-COPY core/requirements.txt /var/www/circulation/core/
+COPY requirements*.txt /var/www/circulation/
+COPY core/requirements*.txt /var/www/circulation/core/
 COPY api/admin/*.json /var/www/circulation/api/admin/
 RUN /ls_build/build.sh
 
