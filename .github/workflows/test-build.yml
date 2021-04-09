@@ -166,7 +166,7 @@ jobs:
           push: true
           tags: ${{ steps.exec-tags.outputs.tags }}
 
-     - name: Build circ-scripts image
+      - name: Build circ-scripts image
         uses: docker/build-push-action@v2
         with:
           context: .
