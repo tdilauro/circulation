@@ -27,6 +27,19 @@ from core.model import (
 class LocalAnalyticsExporter(object):
     """Export large numbers of analytics events in CSV format."""
 
+    # The following event types will be excluded from the export.
+    OMIT_EVENT_TYPES = [
+        "distributor_check_out",
+        "distributor_check_in",
+        "distributor_hold_place",
+        "distributor_hold_release",
+        "distributor_license_add",
+        "distributor_license_remove",
+        "distributor_availability_notify",
+        "distributor_title_add",
+        "distributor_title_remove",
+    ]
+
     def export(self, _db, start, end, locations=None, library=None):
 
         # Get the results from the database.
@@ -74,6 +87,9 @@ class LocalAnalyticsExporter(object):
                 CirculationEvent.type.in_(event_types),
                 CirculationEvent.location.in_(locations),
             ]
+        clauses += [
+            CirculationEvent.type.notin_(self.OMIT_EVENT_TYPES)
+        ]
 
         if library:
             clauses += [
