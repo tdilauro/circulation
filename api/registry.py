@@ -70,22 +70,32 @@ class RemoteRegistry(object):
             yield cls(i)
 
     @classmethod
-    def for_protocol_goal_and_url(cls, _db, protocol, goal, url):
+    def for_protocol_goal_and_url(cls, _db, protocol, goal, url: str):
         """Get a LibraryRegistry for the given protocol, goal, and
         URL. Create the corresponding ExternalIntegration if necessary.
         """
-        try:
-            integration = ExternalIntegration.with_setting_value(
-                _db, protocol, goal, ExternalIntegration.URL, url
-            ).one()
-        except NoResultFound:
-            integration = None
-        if not integration:
+
+        def normalize_url(u: str) -> str:
+            return u.rstrip('/')
+
+        norm_url = normalize_url(url)
+
+        # From the sequence of candidate registries that match protocol & goal,
+        # choose the first with a matching normalized URL. Otherwise, set to None.
+        candidates = cls.for_protocol_and_goal(_db, protocol, goal)
+        registry = next(
+            filter(
+                lambda r: norm_url == normalize_url(r.integration.setting(ExternalIntegration.URL).value),
+                candidates),
+            None)
+
+        if not registry:
             integration, is_new = create(
                 _db, ExternalIntegration, protocol=protocol, goal=goal
             )
             integration.setting(ExternalIntegration.URL).value = url
-        return cls(integration)
+            registry = cls(integration)
+        return registry
 
     @property
     def registrations(self):
