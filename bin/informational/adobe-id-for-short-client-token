@@ -6,7 +6,9 @@ import sys
 import click
 import requests
 
-DEFAULT_REGISTRY_URL = "https://libraryregistry.librarysimplified.org"
+from api.registry import RemoteRegistry
+
+DEFAULT_REGISTRY_URL = RemoteRegistry.DEFAULT_LIBRARY_REGISTRY_URL
 CLIENT_TOKEN_RE = re.compile(r'''
                                 ^
                                 (?P<library>[^|]+) \|               # Any number of characters up to a pipe
