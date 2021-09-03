@@ -114,6 +114,16 @@ class TestRemoteRegistry(DatabaseTest):
         registry2 = m(self._db, protocol, goal, url)
         assert registry2.integration == integration
 
+        # Calling the method again with an extra slash
+        # doesn't create a second ExternalIntegration.
+        registry3 = m(self._db, protocol, goal, url + "/")
+        assert registry3.integration == integration
+
+        # Calling the method again without trailing slashes
+        # doesn't create a second ExternalIntegration.
+        registry4 = m(self._db, protocol, goal, url.rstrip('/'))
+        assert registry4.integration == integration
+
     def test_registrations(self):
         registry = RemoteRegistry(self.integration)
 
