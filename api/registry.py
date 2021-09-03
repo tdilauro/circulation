@@ -37,7 +37,7 @@ class RemoteRegistry(object):
     DISCOVERY_GOAL and wants to help patrons find their libraries) or
     it may be a shared ODL collection (which has LICENSE_GOAL).
     """
-    DEFAULT_LIBRARY_REGISTRY_URL = "https://libraryregistry.librarysimplified.org/"
+    DEFAULT_LIBRARY_REGISTRY_URL = "https://registry.palaceproject.io"
 
     OPDS_1_PREFIX = "application/atom+xml;profile=opds-catalog"
     OPDS_2_TYPE = "application/opds+json"
@@ -571,6 +571,10 @@ class LibraryRegistrationScript(LibraryInputScript):
     def arg_parser(cls, _db):
         parser = LibraryInputScript.arg_parser(_db)
         parser.add_argument(
+            '--registry-name',
+            help="Label associated with registry, if it doesn't already have one.",
+        )
+        parser.add_argument(
             '--registry-url',
             help="Register libraries with the given registry.",
             default=RemoteRegistry.DEFAULT_LIBRARY_REGISTRY_URL
@@ -590,6 +594,14 @@ class LibraryRegistrationScript(LibraryInputScript):
         registry = RemoteRegistry.for_protocol_goal_and_url(
             self._db, self.PROTOCOL, self.GOAL, url
         )
+        if parsed.registry_name:
+            if registry.integration.name:
+                self.log.warning(f'Unable to set registry name. It is already set to "{registry.integration.name}".')
+            else:
+                try:
+                    registry.integration.name = parsed.registry_name
+                except Exception as e:
+                    self.log.warning(f"Unable to set registry name: {e!r}")
         stage = parsed.stage
 
         # Set up an application context so we have access to url_for.
