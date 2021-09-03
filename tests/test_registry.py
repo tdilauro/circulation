@@ -1,35 +1,24 @@
-import pytest
-
+import base64
 import json
+import os
+
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
-import os
-from core.testing import (
-    DatabaseTest
-)
-from core.testing import (
-    DummyHTTPClient,
-    MockRequestsResponse,
-)
+import pytest
+
+from api.adobe_vendor_id import AuthdataUtility
+from api.config import Configuration
+from api.problem_details import *
+from api.registry import LibraryRegistrationScript, Registration, RemoteRegistry
+from core.model import ConfigurationSetting, ExternalIntegration
+from core.testing import DatabaseTest
+from core.testing import DummyHTTPClient, MockRequestsResponse
 from core.util.http import HTTP
 from core.util.problem_detail import (
     ProblemDetail,
     JSON_MEDIA_TYPE as PROBLEM_DETAIL_JSON_MEDIA_TYPE,
 )
-from core.model import (
-    ConfigurationSetting,
-    ExternalIntegration,
-)
-from pdb import set_trace
-import base64
-from api.adobe_vendor_id import AuthdataUtility
-from api.config import Configuration
-from api.problem_details import *
-from api.registry import (
-    RemoteRegistry,
-    Registration,
-    LibraryRegistrationScript,
-)
+
 
 class TestRemoteRegistry(DatabaseTest):
 
