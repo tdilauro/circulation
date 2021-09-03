@@ -831,6 +831,8 @@ class TestLibraryRegistrationScript(DatabaseTest):
         library = self._default_library
         library2 = self._library()
 
+        expected_registry_url = "http://registry/"
+
         cmd_args = [library.short_name, "--stage=testing",
                     "--registry-url=http://registry/"]
         app = script.do_run(cmd_args=cmd_args, in_unit_test=True)
@@ -872,6 +874,20 @@ class TestLibraryRegistrationScript(DatabaseTest):
             assert (
                 RemoteRegistry.DEFAULT_LIBRARY_REGISTRY_URL ==
                 i[0].integration.url)
+
+        # Specify a name to associate with the registry integration.
+        # And verify that URL lookup is not picky about a final slash.
+        cmd_args = ["--registry-name=The Test Project Registry",
+                    "--registry-url", expected_registry_url.rstrip("/"),
+                    library.short_name]
+        app = script.do_run(cmd_args=cmd_args, in_unit_test=True)
+        (registration, stage, url_for) = script.processed.pop()
+        # The registry integration should now have the name we specified.
+        assert "The Test Project Registry" == registration.integration.name
+        # Even though we stripped the slash from the URL, we should still
+        # wind up registering with the integration whose URL has one.
+        assert expected_registry_url.endswith("/")
+        assert expected_registry_url == registration.integration.url
 
     def test_process_library(self):
         """Test the things that might happen when process_library is called."""
