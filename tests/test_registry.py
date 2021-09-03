@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+from urllib.parse import urljoin, urlparse
 
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
@@ -30,6 +31,23 @@ class TestRemoteRegistry(DatabaseTest):
         self.integration = self._external_integration(
             protocol="some protocol", goal=ExternalIntegration.DISCOVERY_GOAL
         )
+
+    def test_valid_default_url(self):
+        """Check that the default registry URL is not obviously invalid."""
+        # TODO: Use a utility function for this.
+        # Not complete, but should catch the most likely cases.
+        default_url = RemoteRegistry.DEFAULT_LIBRARY_REGISTRY_URL
+
+        parsed = urlparse(default_url)
+        host = parsed.netloc.split("@")[-1].split(":")[0]
+        port = parsed.netloc.split(":")[0]
+
+        # Support only this subset of URL schemes.
+        assert parsed.scheme in ['http', 'https']
+        # Host doesn't start with a period.
+        assert len(host) == len(host.lstrip("."))
+        # Host name/IP has at least two dot-separated components.
+        assert len(host.strip(".").split(".")) > 1
 
     def test_constructor(self):
         registry = RemoteRegistry(self.integration)
