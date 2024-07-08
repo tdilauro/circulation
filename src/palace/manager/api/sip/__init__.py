@@ -192,6 +192,14 @@ class SIP2LibrarySettings(BasicAuthProviderLibrarySettings):
             description="A specific identifier for the library or branch, if used in patron authentication",
         ),
     )
+    # Used with the SIP2, when it it available in the patron information response.
+    patron_location_restriction: str | None = FormField(
+        None,
+        form=ConfigurationFormItem(
+            label="Patron permanent location",
+            description="A code for the library or branch that, when specified, must exactly match the permanent location for the patron.",
+        ),
+    )
 
 
 class SIP2AuthenticationProvider(
@@ -241,6 +249,7 @@ class SIP2AuthenticationProvider(
         self.ssl_verification = settings.ssl_verification
         self.dialect = settings.ils
         self.institution_id = library_settings.institution_id
+        self.patron_location_restriction = library_settings.patron_location_restriction
         self._client = client
 
         # Check if patrons should be blocked based on SIP status
@@ -444,11 +453,18 @@ class SIP2AuthenticationProvider(
     def info_to_patrondata_block_reason(
         self, info, patrondata: PatronData
     ) -> PatronData.NoValue | str:
+        if (
+            self.patron_location_restriction is not None
+            and info.get("permanent_location") != self.patron_location_restriction
+        ):
+            return PatronData.LOCATION_MISMATCH
+
         # A True value in most (but not all) subfields of the
         # patron_status field will prohibit the patron from borrowing
         # books.
         status = info["patron_status_parsed"]
         block_reason: str | PatronData.NoValue = PatronData.NO_VALUE
+
         for field in self.fields_that_deny_borrowing:
             if status.get(field) is True:
                 block_reason = self.SPECIFIC_BLOCK_REASONS.get(

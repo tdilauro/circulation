@@ -188,6 +188,7 @@ named._add("print_line", "AG")
 
 # SIP extensions defined by Georgia Public Library Service's SIP
 # server, used by Evergreen and Koha.
+named._add("permanent_location", "AQ")
 named._add("sipserver_patron_expiration", "PA")
 named._add("sipserver_patron_class", "PC")
 named._add("sipserver_internet_privileges", "PI")

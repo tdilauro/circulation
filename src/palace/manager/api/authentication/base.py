@@ -156,6 +156,10 @@ class PatronData:
     TOO_MANY_OVERDUE = "too many items overdue"
     TOO_MANY_LOST = "too many items lost"
 
+    # A location restriction was specified; however, the location is either
+    # missing from the patron response, or does not match the restriction.
+    LOCATION_MISMATCH = "location does not match"
+
     # Patron is being billed for too many items (as opposed to
     # excessive fines, which means patron's fines have exceeded a
     # certain amount).
