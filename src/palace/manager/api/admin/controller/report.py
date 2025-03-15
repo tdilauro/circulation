@@ -1,4 +1,5 @@
 import json
+import uuid
 from http import HTTPStatus
 
 import flask
@@ -13,11 +14,15 @@ from palace.manager.api.admin.model.inventory_report import (
     InventoryReportCollectionInfo,
     InventoryReportInfo,
 )
-from palace.manager.api.admin.problem_details import ADMIN_NOT_AUTHORIZED
+from palace.manager.api.admin.problem_details import (
+    ADMIN_NOT_AUTHORIZED,
+    INVALID_REPORT_JOB_KEY,
+)
 from palace.manager.celery.tasks.generate_inventory_and_hold_reports import (
     generate_inventory_and_hold_reports,
     library_report_integrations,
 )
+from palace.manager.celery.tasks.reports import JOB_KEY_MAPPING, generate_report_task
 from palace.manager.core.problem_details import INTERNAL_SERVER_ERROR
 from palace.manager.service.integration_registry.license_providers import (
     LicenseProvidersRegistry,
@@ -27,6 +32,7 @@ from palace.manager.sqlalchemy.model.admin import Admin
 from palace.manager.sqlalchemy.model.library import Library
 from palace.manager.util.log import LoggerMixin
 from palace.manager.util.problem_detail import ProblemDetail, ProblemDetailException
+from palace.manager.util.uuid import uuid_encode
 
 
 def _authorize_from_request(
@@ -46,9 +52,62 @@ def _authorize_from_request(
 
 
 class ReportController(LoggerMixin):
+
     def __init__(self, db: Session, registry: LicenseProvidersRegistry):
         self._db = db
         self.registry = registry
+
+    def generate_report(self, *, report_key: str) -> Response:
+        """Generate the report indicated by the report_key."""
+
+        admin, library = _authorize_from_request(flask.request)
+        email_address = admin.email
+        # email_address = "tim.di.lauro@gmail.com"
+
+        request_id = uuid_encode(uuid.uuid4())
+
+        if report_key not in JOB_KEY_MAPPING:
+            detail = INVALID_REPORT_JOB_KEY.detail or "Unknown report job key."
+            raise ProblemDetailException(
+                INVALID_REPORT_JOB_KEY.detailed(
+                    f"{detail.rstrip('. ')} (key='{report_key}')."
+                )
+            )
+        report_title = JOB_KEY_MAPPING[report_key].JOB_TITLE
+
+        self.log.info(
+            f"Report '{report_title}' ({report_key}) requested by <{email_address}>. (request ID: {request_id})"
+        )
+        try:
+            task = generate_report_task.delay(
+                key=report_key,
+                request_id=request_id,
+                library_id=library.id,
+                email_address=email_address,
+            )
+        except Exception as e:
+            msg = f"Failed to generate report '{report_title}' ({report_key}). (request ID: {request_id})"
+            self.log.error(msg=msg, exc_info=e)
+            self._db.rollback()
+            raise ProblemDetailException(
+                INTERNAL_SERVER_ERROR.detailed(detail=msg)
+            ) from e
+
+        self.log.info(
+            f"Report task created: '{report_title}' ({report_key}) for <{email_address}>. "
+            f"(request ID: {request_id}, task ID: {task.id})"
+        )
+
+        response_message = (
+            f"The '{report_title}' request was received. "
+            "Report processing can take a few minutes to complete, depending on current server load."
+            f"The completed reports will be sent to {email_address}."
+        )
+        return Response(
+            json.dumps({"message": response_message}),
+            HTTPStatus.ACCEPTED,
+            mimetype=MediaTypes.APPLICATION_JSON_MEDIA_TYPE,
+        )
 
     def inventory_report_info(self) -> Response:
         """InventoryReportInfo response of reportable collections for a library.
@@ -95,7 +154,7 @@ class ReportController(LoggerMixin):
             f"An inventory and hold report request was received. Report processing can take a few minutes to "
             f"finish depending on current server load. The completed reports will be sent to {admin.email}."
         )
-        self.log.info(f"({msg} Task Request Id: {task.id})")
+        self.log.info(f"({msg} task ID: {task.id})")
         return Response(
             json.dumps(dict(message=msg)),
             HTTPStatus.ACCEPTED,

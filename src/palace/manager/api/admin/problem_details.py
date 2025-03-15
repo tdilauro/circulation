@@ -46,6 +46,13 @@ INVALID_EDIT = pd(
     _("There was a problem with the edited metadata."),
 )
 
+INVALID_REPORT_JOB_KEY = pd(
+    "http://palaceproject.io/terms/problem/invalid-report-job-key",
+    400,
+    _("Invalid report job key"),
+    _("No currently defined report job is associated with the specified key."),
+)
+
 METADATA_REFRESH_PENDING = pd(
     "http://librarysimplified.org/terms/problem/metadata-refresh-pending",
     201,
