@@ -17,14 +17,24 @@ class CountingIterator(Generic[I]):
     def __init__(self, iterable: Iterable[I]) -> None:
         self.iterator = iter(iterable)
         self.count = 0
+        self._is_exhausted = False
 
     def __iter__(self) -> Self:
         return self
 
     def __next__(self) -> I:
-        row = next(self.iterator)
+        try:
+            row = next(self.iterator)
+        except StopIteration:
+            self._is_exhausted = True
+            raise
         self.count += 1
         return row
 
     def get_count(self) -> int:
         return self.count
+
+    @property
+    def is_exhausted(self) -> bool:
+        """Check if the iterator is exhausted."""
+        return self._is_exhausted

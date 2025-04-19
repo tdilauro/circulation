@@ -50,19 +50,26 @@ class TestCountingIterator:
         data = [1, 2, 3]
         iterator = CountingIterator(data)
         assert iterator.get_count() == 0
+        assert iterator.is_exhausted is False
         list(iterator)
         assert iterator.get_count() == 3
+        assert iterator.is_exhausted is True
 
     def test_counting_iterator_get_count_during_iteration(self):
         data = [1, 2, 3]
         iterator = CountingIterator(data)
         assert iterator.get_count() == 0
+        assert iterator.is_exhausted is False
         next(iterator)
         assert iterator.get_count() == 1
+        assert iterator.is_exhausted is False
         next(iterator)
         assert iterator.get_count() == 2
+        assert iterator.is_exhausted is False
         next(iterator)
         assert iterator.get_count() == 3
+        assert iterator.is_exhausted is False
         with pytest.raises(StopIteration):
             next(iterator)
         assert iterator.get_count() == 3
+        assert iterator.is_exhausted is True
