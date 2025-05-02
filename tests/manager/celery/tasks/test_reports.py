@@ -1,7 +1,8 @@
 import unittest
+import uuid
 from abc import ABC
 from datetime import datetime
-from io import StringIO
+from io import BytesIO, StringIO
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from palace.manager.celery.task import Task
 from palace.manager.celery.tasks.reports import (
+    GenerateTitleLevelReportJob,
     LibraryReportJob,
     RequestIdLoggerAdapter,
     generate_report_task,
@@ -18,6 +20,7 @@ from palace.manager.reporting.util import TTabularHeadings, TTabularRows
 from palace.manager.service.email.email import SendEmailCallable
 from palace.manager.service.storage.s3 import S3Service
 from palace.manager.sqlalchemy.model.library import Library
+from palace.manager.util.uuid import uuid_encode
 from tests.fixtures.database import DatabaseTransactionFixture
 
 
@@ -277,3 +280,97 @@ class TestLibraryReportJob:
 
         assert len(eligible_integrations) == 1
         assert eligible_integrations == [collection1.integration_configuration]
+
+
+class TestStoreToS3:
+    @pytest.fixture
+    def mock_job(self) -> GenerateTitleLevelReportJob:
+        mock_session_maker = MagicMock()
+        mock_send_email = MagicMock()
+
+        job = GenerateTitleLevelReportJob(
+            session_maker=mock_session_maker,
+            send_email=mock_send_email,
+            s3_service=MagicMock(spec=S3Service),  # Mock the S3 service
+            request_id="test-request-id",
+            library_id=1,
+            email_address="test@example.com",
+        )
+        return job
+
+    @pytest.mark.parametrize(
+        "file_content_bytes, subdir, file_name",
+        (
+            pytest.param(
+                b"This is the report content.",
+                "test_library",
+                "test_report",
+                id="standard_input",
+            ),
+            pytest.param(
+                b"", "another/sub/dir", "complex-report_name.v2", id="empty_data"
+            ),
+            pytest.param(
+                b"Report content", "", "complex-report_name.v2", id="empty_subdir"
+            ),
+            pytest.param(b"More data", "no_slash", "simple", id="simple_names"),
+        ),
+    )
+    def test_store_to_s3(
+        self,
+        mock_job: GenerateTitleLevelReportJob,
+        file_content_bytes: bytes,
+        subdir: str,
+        file_name: str,
+    ) -> None:
+        """Verify that we interact with the S3 service as expected."""
+        test_uuid = uuid.uuid4()
+        encoded_uuid = uuid_encode(test_uuid)
+
+        file_stream = BytesIO(file_content_bytes)
+        expected_key = f"{S3Service.DOWNLOADS_PREFIX}/reports/{subdir}/{file_name}-{encoded_uuid}.zip"
+        expected_url = f"https://s3.example.com/{expected_key}"
+
+        mock_job.s3_service.generate_url.return_value = expected_url
+
+        with patch("uuid.uuid4") as mock_uuid4:
+            mock_uuid4.return_value = test_uuid
+            result_url = mock_job.store_to_s3(
+                file=file_stream, subdir=subdir, file_name=file_name
+            )
+
+        mock_job.s3_service.store_stream.assert_called_once_with(
+            expected_key,
+            file_stream,
+            content_type="application/zip",
+        )
+        mock_job.s3_service.generate_url.assert_called_once_with(expected_key)
+
+        assert result_url == expected_url
+
+    def test_store_to_s3_storage_failure(
+        self, mock_job: GenerateTitleLevelReportJob
+    ) -> None:
+        """An exception during S3 storage is propagated."""
+        test_uuid = uuid.uuid4()
+        encoded_uuid = uuid_encode(test_uuid)
+
+        file_content = b"Report data"
+        file_stream = BytesIO(file_content)
+        subdir = "failed_lib"
+        file_name = "failed_report"
+        expected_key = f"{S3Service.DOWNLOADS_PREFIX}/reports/{subdir}/{file_name}-{encoded_uuid}.zip"
+
+        mock_job.s3_service.store_stream.side_effect = Exception("S3 Upload Error")
+
+        with patch("uuid.uuid4") as mock_uuid4:
+            mock_uuid4.return_value = test_uuid
+            with pytest.raises(Exception, match="S3 Upload Error"):
+                mock_job.store_to_s3(
+                    file=file_stream, subdir=subdir, file_name=file_name
+                )
+
+        mock_job.s3_service.store_stream.assert_called_once_with(
+            expected_key, file_stream, content_type="application/zip"
+        )
+        mock_job.s3_service.generate_url.assert_not_called()
