@@ -127,8 +127,8 @@ class LibraryAllTitleReport:
     """A report of all titles in the library."""
 
     DEFINITION = TabularQueryDefinition(
-        id="all-titles",
-        title="All Titles",
+        id="all-title",
+        title="All Title",
         statement=library_all_titles_query(),
     )
 
@@ -137,9 +137,10 @@ class LibraryAllTitleReport:
         library: Library,
         collection_ids: Sequence[int] | None = None,
     ) -> None:
+        self.session = Session.object_session(library)
         self.library = library
-        self.collection_ids = (
-            set(collection_ids) if collection_ids is not None else None
+        self.collections = self.included_collections(
+            library, collection_ids=collection_ids
         )
 
     @property
@@ -158,7 +159,7 @@ class LibraryAllTitleReport:
         :param library: The library to check.
         :param collection_ids: IDs requested for inclusion. If provided, all
             requested collections must be among the given library's *associated*
-            collections to considered eligible. Otherwise (i.e., not provided),
+            collections to be considered eligible. Otherwise (i.e., not provided),
             all *active* collections for the library are considered eligible.
         :return: The list of collections that are eligible for this report.
 
@@ -170,15 +171,15 @@ class LibraryAllTitleReport:
         if collection_ids is None:
             return list(library.active_collections)
 
-        eligible_collections_id = {str(c.id) for c in library.associated_collections}
+        eligible_collections_ids = {c.id for c in library.associated_collections}
         requested_collections_ids = set(collection_ids)
-        # If collections are specified, only associated collections are eligible.
-        if collection_ids not in eligible_collections_id:
-            ineligible_collection_ids = list(
-                eligible_collections_id.difference(collection_ids)
-            )
+        # If collections are specified, all associated collections are eligible.
+        if ineligible_collection_ids := requested_collections_ids.difference(
+            eligible_collections_ids
+        ):
+            ineligible = ", ".join(map(str, sorted(ineligible_collection_ids)))
             raise ValueError(
-                f"Collection ids {', '.join(ineligible_collection_ids)} are not eligible for library '{library.name}' reports."
+                f"Ineligible collection(s) for library '{library.name}' reports: {ineligible}"
             )
 
         # Otherwise, return the requested collections.
@@ -188,6 +189,24 @@ class LibraryAllTitleReport:
             if c.id in requested_collections_ids
         ]
 
+    @property
+    def rows(self) -> TTabularRows:
+        # Get the integration IDs for the collections.
+        integration_ids: list[int] = [
+            c.integration_configuration_id for c in self.collections
+        ]
+
+        # Return the rows.
+        return self.DEFINITION.rows(
+            session=self.session,
+            library_id=self.library.id,
+            integration_ids=integration_ids,
+        )
+
+    @property
+    def headings(self) -> TTabularHeadings:
+        return self.DEFINITION.headings
+
     def __call__(
         self,
         processor: Callable[
@@ -195,40 +214,4 @@ class LibraryAllTitleReport:
         ],
     ) -> TTabularDataProcessorReturn:
         """Process the tabular data."""
-        # Get the integration IDs for the collections.
-        integration_ids: list[int] = [
-            c.integration_configuration_id
-            for c in self.included_collections(
-                self.library, collection_ids=self.collection_ids
-            )
-        ]
-
-        # Generate the report.
-        return processor(
-            self.DEFINITION.rows(
-                session=Session.object_session(self.library),
-                library_id=self.library.id,
-                integration_ids=integration_ids,
-            ),
-            self.DEFINITION.headings,
-        )
-
-
-# def all_titles_report(
-#     library: Library,
-#     integration_ids: list[int],
-#     transformer: Callable[[TTabularRows, TTabularHeadings | None], Any],
-# ) -> None:
-#     """Generate a report of all titles in the library."""
-#     report_definition = ReportDefinition(
-#         id="all-titles",
-#         title="All Titles",
-#         statement=library_all_titles_query(),
-#     )
-#     headings = report_definition.headings
-#     rows = partial(
-#         report_definition.rows,
-#         library_id=library.id,
-#         integration_ids=integration_ids,
-#     )
-#     transformer(rows(), headings)
+        return processor(self.rows, self.headings)

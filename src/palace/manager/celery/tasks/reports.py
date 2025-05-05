@@ -19,7 +19,6 @@ from palace.manager.celery.job import Job
 from palace.manager.celery.task import Task
 from palace.manager.reporting.all_title import LibraryAllTitleReport, ReportTable
 from palace.manager.reporting.util import (
-    TTabularDataProcessor,
     row_counter_wrapper,
     write_csv,
 )
@@ -63,9 +62,6 @@ class LibraryReportJob(Job, ABC):
     TIMESTAMP_FORMAT_FOR_EMAILS = "%Y-%m-%dT%H:%M:%S"
     JOB_KEY: ClassVar[str]  # All subclasses must define this.
     JOB_TITLE: ClassVar[str]  # All subclasses must define this.
-    # REPORTS_DEFINITIONS: ClassVar[
-    #     list[ReportDefinition]
-    # ]  # All subclasses must define this.
 
     @classmethod
     def from_task(
@@ -143,7 +139,7 @@ class LibraryReportJob(Job, ABC):
             return None
         return library
 
-    def send_download_notification(
+    def send_notification(
         self, *, download_url: str, library: Library, timestamp: datetime
     ) -> None:
         self.send_email(
@@ -163,22 +159,26 @@ class GenerateTitleLevelReportJob(LibraryReportJob):
     JOB_KEY = "title-level-report"
     JOB_TITLE = "Title-Level Report"
 
-    def store_to_s3(self, *, file: IO[bytes], subdir: str, file_name: str) -> str:
-        # Push it to S3.
-        uid = uuid_encode(uuid.uuid4())
-        key = f"{S3Service.DOWNLOADS_PREFIX}/reports/{subdir}/{file_name}-{uid}.zip"
+    def store_to_s3(self, *, file: IO[bytes], name: str, extension: str = "") -> str:
+        """Store content to S3.
 
-        # This returns a URL. Is it the same one that is returned by generate_url?
-        self.s3_service.store_stream(
+        The name and extension are used to construct a key for the S3
+        object. A UUID is injected into the key to avoid creating
+        predictable S3 URLs.
+
+        :param file: A file-like object with the contents to store.
+        :param name: The name for the S3 key.
+        :param extension: The extension, including the dot('.'), for the S3 key.
+        :return: The URL for the stored object.
+        """
+        encoded_uuid = uuid_encode(uuid.uuid4())
+        key = f"{S3Service.DOWNLOADS_PREFIX}/reports/{name}-{encoded_uuid}{extension}"
+
+        return self.s3_service.store_stream(
             key,
             file,
             content_type="application/zip",
         )
-        return self.s3_service.generate_url(key)
-
-    @staticmethod
-    def _table_processor_for_file(file: IO[str]) -> TTabularDataProcessor[None]:
-        return partial(write_csv, file, delimiter=",")
 
     def zip_results(
         self,
@@ -189,7 +189,8 @@ class GenerateTitleLevelReportJob(LibraryReportJob):
     ) -> None:
         with tempfile.NamedTemporaryFile("w", encoding="utf-8") as temp_file:
             # Generate the report.
-            processor = row_counter_wrapper(self._table_processor_for_file(temp_file))
+            csv_file_writer = partial(write_csv, temp_file, delimiter=",")
+            processor = row_counter_wrapper(csv_file_writer)
             counted_rows, _ = table(processor)
             self.log.debug(
                 f"Wrote {counted_rows.get_count()} rows to file {temp_file.name}."
@@ -204,12 +205,8 @@ class GenerateTitleLevelReportJob(LibraryReportJob):
                 f"Report file added to Zip archive '{archive.filename}' as '{member_name}'."
             )
 
-    def _run_report(self, *, library: Library, session: Session | None = None) -> None:
+    def _run_report(self, *, library: Library) -> None:
         """Run the report for the given library."""
-
-        # Get a session, if we weren't given one.
-        if not session:
-            session = Session.object_session(library)
 
         # We want the time of the actual run, since the content of the
         # report may change over time.
@@ -236,7 +233,6 @@ class GenerateTitleLevelReportJob(LibraryReportJob):
                         member_name=f"{report_filename_for_id(report_id=table.definition.id)}.csv",
                         table=table,
                     )
-
             self.log.debug(f"Zip file written to '{zip_path}'.")
 
             # This step must be done after the Zip `archive` has been closed,
@@ -247,23 +243,25 @@ class GenerateTitleLevelReportJob(LibraryReportJob):
             # manager exits, so this step must be performed within that context manager.
             # Store the Zip to S3.
             s3_url = self.store_to_s3(
-                file=temp_zip_file, subdir=library.short_name, file_name=job_filename
+                file=temp_zip_file,
+                name=f"{library.short_name}/{job_filename}",
+                extension=".zip",
             )
 
         # Notify the requestor.
-        self.send_download_notification(
+        self.send_notification(
             download_url=s3_url, library=library, timestamp=timestamp
         )
 
     def run(self) -> None:
-        """Run the main report task in job's transaction."""
+        """Run the main report task in the job's transaction."""
         with self.transaction() as session:
             if not (library := self.library_for_report(session)):
                 self.log.error(
                     f"No library found for id {self.library_id} report {self.job_key}."
                 )
                 return
-            self._run_report(library=library, session=session)
+            self._run_report(library=library)
 
 
 JOB_KEY_MAPPING: dict[str, type[LibraryReportJob]] = {
