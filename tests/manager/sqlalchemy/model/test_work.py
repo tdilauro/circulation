@@ -596,22 +596,22 @@ class TestWork:
         assert pool_git.suppressed == False
         assert pool_gut.suppressed == False
 
-        # sanity check - we like standard ebooks and it got determined to be the best
-        assert work.presentation_edition == pool_std_ebooks.presentation_edition
-        assert work.presentation_edition == edition_std_ebooks
+        # sanity check - GItenburg was determined to be the best
+        assert work.presentation_edition == pool_git.presentation_edition
+        assert work.presentation_edition == edition_git
 
-        # editions know who's the presentation edition
-        assert edition_std_ebooks.work == work
-        assert edition_git.work == None
+        # Editions know if they're the presentation edition.
+        assert edition_std_ebooks.work == None
+        assert edition_git.work == work
         assert edition_gut.work == None
 
         # The title of the Work is the title of its presentation edition.
-        assert "The Standard Ebooks Title" == work.title
-        assert "The Standard Ebooks Subtitle" == work.subtitle
+        assert "The GItenberg Title" == work.title
+        assert "The GItenberg Subtitle" == work.subtitle
 
         # The author of the Work is the author of its presentation edition.
-        assert "Alice Adder" == work.author
-        assert "Adder, Alice" == work.sort_author
+        assert "Alice Adder, Bob Bitshifter" == work.author
+        assert "Adder, Alice ; Bitshifter, Bob" == work.sort_author
 
         # now suppress all of the license pools
         pool_std_ebooks.suppressed = True
@@ -621,22 +621,22 @@ class TestWork:
         # and let work know
         work.calculate_presentation()
 
-        # standard ebooks was last viable pool, and it stayed as work's choice
-        assert work.presentation_edition == pool_std_ebooks.presentation_edition
-        assert work.presentation_edition == edition_std_ebooks
+        # GItenberg was last viable pool, and it remains as work's choice.
+        assert work.presentation_edition == pool_git.presentation_edition
+        assert work.presentation_edition == edition_git
 
-        # editions know who's the presentation edition
-        assert edition_std_ebooks.work == work
-        assert edition_git.work == None
+        # Editions know if they're the presentation edition.
+        assert edition_std_ebooks.work == None
+        assert edition_git.work == work
         assert edition_gut.work == None
 
         # The title of the Work is still the title of its last viable presentation edition.
-        assert "The Standard Ebooks Title" == work.title
-        assert "The Standard Ebooks Subtitle" == work.subtitle
+        assert "The GItenberg Title" == work.title
+        assert "The GItenberg Subtitle" == work.subtitle
 
         # The author of the Work is still the author of its last viable presentation edition.
-        assert "Alice Adder" == work.author
-        assert "Adder, Alice" == work.sort_author
+        assert "Alice Adder, Bob Bitshifter" == work.author
+        assert "Adder, Alice ; Bitshifter, Bob" == work.sort_author
 
     def test_work_updates_info_on_pool_suppressed(self, db: DatabaseTransactionFixture):
         """If the provider of the work's presentation edition gets suppressed,
@@ -660,45 +660,45 @@ class TestWork:
         assert pool_git.suppressed == False
         assert pool_gut.suppressed == False
 
-        # sanity check - we like standard ebooks and it got determined to be the best
-        assert work.presentation_edition == pool_std_ebooks.presentation_edition
-        assert work.presentation_edition == edition_std_ebooks
-
-        # editions know who's the presentation edition
-        assert edition_std_ebooks.work == work
-        assert edition_git.work == None
-        assert edition_gut.work == None
-
-        # The title of the Work is the title of its presentation edition.
-        assert "The Standard Ebooks Title" == work.title
-        assert "The Standard Ebooks Subtitle" == work.subtitle
-
-        # The author of the Work is the author of its presentation edition.
-        assert "Alice Adder" == work.author
-        assert "Adder, Alice" == work.sort_author
-
-        # now suppress the primary license pool
-        pool_std_ebooks.suppressed = True
-
-        # and let work know
-        work.calculate_presentation()
-
-        # gitenberg is next best and it got determined to be the best
+        # sanity check - GItenburg was determined to be the best
         assert work.presentation_edition == pool_git.presentation_edition
         assert work.presentation_edition == edition_git
 
-        # editions know who's the presentation edition
+        # Editions know if they're the presentation edition.
         assert edition_std_ebooks.work == None
         assert edition_git.work == work
         assert edition_gut.work == None
 
-        # The title of the Work is still the title of its last viable presentation edition.
+        # The title of the Work is the title of its presentation edition.
         assert "The GItenberg Title" == work.title
         assert "The GItenberg Subtitle" == work.subtitle
 
-        # The author of the Work is still the author of its last viable presentation edition.
+        # The author of the Work is the author of its presentation edition.
         assert "Alice Adder, Bob Bitshifter" == work.author
         assert "Adder, Alice ; Bitshifter, Bob" == work.sort_author
+
+        # now suppress the primary license pool
+        pool_git.suppressed = True
+
+        # and let work know
+        work.calculate_presentation()
+
+        # GUtenberg is now determined to be the best
+        assert work.presentation_edition == pool_gut.presentation_edition
+        assert work.presentation_edition == edition_gut
+
+        # Editions know if they're the presentation edition.
+        assert edition_std_ebooks.work == None
+        assert edition_git.work == None
+        assert edition_gut.work == work
+
+        # The title of the Work is now the title of the new presentation edition.
+        assert "The GUtenberg Title" == work.title
+        assert "The GUtenberg Subtitle" == work.subtitle
+
+        # The author of the Work is now the author of the new presentation edition.
+        assert "Bob Bitshifter" == work.author
+        assert "Bitshifter, Bob" == work.sort_author
 
     def test_suppressed_for_delete_work(self, db: DatabaseTransactionFixture):
         work = db.work()
