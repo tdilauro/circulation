@@ -159,6 +159,6 @@ class CustomListQueries(LoggerMixin):
         # update this lists last updated time
         custom_list.auto_update_last_update = datetime.datetime.now()
         # update the list size
-        custom_list.size = len(custom_list.entries)
+        custom_list.update_size(_db)
 
         return total_works_updated
