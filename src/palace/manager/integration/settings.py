@@ -321,7 +321,7 @@ class BaseSettings(BaseModel, LoggerMixin):
         """
         include = {
             name
-            for name, field_info in self.model_fields.items()
+            for name, field_info in type(self).model_fields.items()
             if (fm := _get_form_metadata(field_info)) is not None
             and fm.patron_auth_filter_context
         }
